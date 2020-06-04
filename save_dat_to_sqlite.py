@@ -3,14 +3,14 @@ import sqlite3, pickle, pyodbc
 def filter_nonprintable(text):
     import string
     # Get the difference of all ASCII characters from the set of printable characters
-    nonprintable = set(list([chr(i) for i in range(128)])+['\t','\n']).difference(string.printable)
+    nonprintable = set(list([chr(i) for i in range(128)])).difference(string.printable).union(['\n','\t','\r',chr(13)])
     # Use translate to remove all non-printable characters
     return text.translate({ord(character):None for character in nonprintable})
 
 data = []
-dbFile = "reddit_comments_dbAggrData20200311_193824.dat.sqlite"
+dbFile = "reddit_comments_dbAggrData_fromQuery20200316_163841.dat.sqlite"
 
-with open("reddit_comments_dbAggrData20200311_193824.dat", "rb") as f:
+with open("reddit_comments_dbAggrData_fromQuery20200316_163841.dat", "rb") as f:
     data = pickle.load(f)
     #data = list(filter(lambda x: [filter_nonprintable(x[0]),filter_nonprintable(x[1]),x[2],x[3]], data[:10]))
 
