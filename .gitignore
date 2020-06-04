@@ -3,4 +3,5 @@
 *.zip
 *.txt
 *.pdf
+*.ipynb
 !readme.txt
