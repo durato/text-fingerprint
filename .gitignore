@@ -2,4 +2,5 @@
 *.sqlite
 *.zip
 *.txt
+*.pdf
 !readme.txt
