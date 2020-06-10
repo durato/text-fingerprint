@@ -1,15 +1,16 @@
 import collections, concurrent.futures, time, sys, pickle
+from multiprocessing import Process, Manager, Pool, Array
 from . import utils
 
 ##############################
 #### PROCESS RAW TEXT ########
 ##############################
 
-def consume(lines, printed=False):
+def consume(lines, printed=False, maxDistance=5):
     connections = []
     ignored = ["!", ".", ",", "?", ";", "&gt", "&lt"]
     for line in lines:
-        lastWords = collections.deque(5*[""], 5)
+        lastWords = collections.deque(maxDistance*[""], maxDistance)
         #print(line)
         #print(punctualize(line))
         line = utils.punctualize(line)
@@ -25,7 +26,7 @@ def consume(lines, printed=False):
             #if lastWords is not None:
             connections.append([word, word, 0, 1]) # word count, simply.
             #connections.append([lastWord, word, 1, 1])
-            for i in range(0, len(lastWords)):
+            for i in range(maxDistance):
                 if lastWords[i] != "" and lastWords[i] != " ":
                     connections.append([lastWords[i], word, i+1, 1])
                     #print(word, [lastWords[i], word, i+1, 1])
@@ -39,45 +40,66 @@ def consume(lines, printed=False):
 ##############################
 #### AGGREGATION #############
 ##############################
+def aggregateWorker(args):
+    d, existing, limit, printed = args
+    aggregate(d, existing, limit, printed)
 
-def aggregate(d, existing = None, slot=0, percents=[float(0)], limit=0, printed=False):
-    if printed:
-        print("Aggregating... slot=", slot)
+def exit_handler():
+    print("finished process:"+str(os.getpid()))
+
+def aggregate(d, existing = None, limit=0, printed=False, maxDistance=5):
+    # from multiprocessing.util import Finalize
     consumed_data = list(d)
     if existing is not None:
         consumed_data = consumed_data + existing
 
     pctStr = ""
-    consumed_data = sorted(consumed_data, key=lambda x:x[0])
+    consumed_data = sorted(consumed_data, key=lambda x:(x[0],x[1],x[2]))
+
+    if len(consumed_data)==0:
+        if printed:
+            print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"Tried to aggregate empty list")
+        return []
 
     if limit>0 and len(consumed_data)>limit:
         if printed:
-            print("Splitting.")
+            print(time.strftime('%Y-%m-%d %H:%M:%S | ')+f"{len(consumed_data)=}, Splitting.")
         firstHalf, lastHalf = utils.split_list(consumed_data)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            percents.append(float(0))
-            percents.append(float(0))
-            t1 = executor.submit(aggregate, firstHalf, None, len(percents)-2, percents, limit)
-            t2 = executor.submit(aggregate, lastHalf, None, len(percents)-1, percents, limit)
-            consumed_data = t1.result() + t2.result()
-            # todo: https://www.youtube.com/watch?v=fKl2JW_qrso * Python Multiprocessing Tutorial: Run Code in Parallel Using the Multiprocessing Module
+
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            processes = []
+            for dist in range(maxDistance+1):
+                print(time.strftime('%Y-%m-%d %H:%M:%S | ')+f'{dist=}')
+                processes.append(executor.submit(aggregate, list(filter(lambda x: x[2]==dist, consumed_data)), None, 0, True, maxDistance))
+
+            processes.append(executor.submit(aggregate, list(filter(lambda x: x[2] not in range(maxDistance+1), consumed_data)), None, 0, True, maxDistance))
+
+            result = []
+            if printed:
+                print(time.strftime('%Y-%m-%d %H:%M:%S | ')+f'{len(processes)=} ||')
+            for proc in processes:
+                result += proc.result()
+
+            return result
+            # Finalize(limit, exit_handler, exitpriority=0)
 
     result = []
     if printed:
-        print("Aggregating "+str(len(consumed_data))+" entries. "+time.strftime('%Y-%m-%d %H:%M:%S'))
+        print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"Aggregating "+str(len(consumed_data))+" entries. ")
     originalCount = len(consumed_data)
-    consumed_data = sorted(consumed_data, key=lambda x:x[0])
+    consumed_data = sorted(consumed_data, key=lambda x:(x[0],x[1],x[2]))
+    percent = 0.0
 
     while len(consumed_data)>0:
         currentCount = len(consumed_data)
 
         try:
-            percents[slot] = 1-(currentCount / originalCount)
+            percent = 1-(currentCount / originalCount)
         except:
             if printed:
-                print(percents, "slot = ",slot)
+                print(str(percent*100)+"%")
             raise
-        pctStrCur = utils.formatPercents(percents)
+        pctStrCur = utils.formatPercents([percent])
 
         if pctStr != pctStrCur and printed:
             print(pctStrCur, originalCount-currentCount, "/", originalCount, end="\r", flush=True)
@@ -100,7 +122,7 @@ def aggregate(d, existing = None, slot=0, percents=[float(0)], limit=0, printed=
 
         result.append(agg)
     if printed:
-        print("Aggregated. "+time.strftime('%Y-%m-%d %H:%M:%S'))
+        print(time.strftime('%Y-%m-%d %H:%M:%S | ')+f'Aggregated. {len(result)=}')
     return result
 
 def cleanseRawData(fileName):
@@ -118,7 +140,7 @@ def learn(fname, existingFname="", outfname="output_data.dat"):
     #existingFname = "output_data"
     #data = consume(["This is a good day to die.","Power level is above nine thousand!"])
     data = []
-    print("Started: "+time.strftime('%Y-%m-%d %H:%M:%S'))
+    print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"Started: ")
     if existingFname!="":
         try:
             timestr = time.strftime("%Y%m%d_%H%M%S")
@@ -164,3 +186,6 @@ def preprocessShortText(lines):
     inputData = aggregate(consume(lines))
     inputData = utils.dataSort(inputData, col=2)
     return inputData
+
+if __name__ == '__main__' or __name__ == 'processing':
+    freeze_support()

@@ -8,7 +8,7 @@ def flushStatusData(lastdate, lastcomment):
         outf.write(str(lastdate)+"\n")
         outf.write(lastcomment+"\n")
 
-def readFromRedditCommentDb(data, lastDate=0):
+def readFromRedditCommentDb(data, lastDate=0, rowcount=50000):
     dbfile = "K:\\DATA\\RedditCommentsMay2015\\reddit-comments-may-2015\\database.sqlite" #https://www.kaggle.com/reddit/reddit-comments-may-2015
     dbLines = []
     dbAggrData = []
@@ -23,7 +23,7 @@ def readFromRedditCommentDb(data, lastDate=0):
 
         queryText = """SELECT body, id, created_utc
         FROM May2015
-        WHERE LENGTH(body)>50 AND NOT (body LIKE '[deleted]')"""+" AND created_utc>"+str(lastDate)+" ORDER BY created_utc ASC LIMIT 50000"
+        WHERE LENGTH(body)>50 AND NOT (body LIKE '[deleted]')"""+" AND created_utc>"+str(lastDate)+" ORDER BY created_utc ASC LIMIT "+str(rowcount)
 
         queryResult = c.execute(queryText)
         #time.sleep(10)
@@ -47,14 +47,14 @@ def readFromRedditCommentDb(data, lastDate=0):
                     print(time.strftime('%Y-%m-%d %H:%M:%S | ')+str(aggregate_at)+" comments processed.", "Total:",str(processCycles*aggregate_at))
 
                     dbAggrDataLength = len(dbAggrData)
-                    data = data + processing.aggregate(dbAggrData, printed=True)
+                    data = data + processing.aggregate(dbAggrData, printed=True, limit=100000)
                     dbAggrData=[]
 
                     print(time.strftime('%Y-%m-%d %H:%M:%S | '),"Processing cycle #"+str(processCycles),"data length:",len(data))
 
                     if processCycles%5==0:
-                        print("Aggregating entire data")
-                        data = processing.aggregate(data, printed=True)
+                        print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"Aggregating data after 5 cycles")
+                        data = processing.aggregate(data, printed=True, limit=500000)
 
                     #in case something funny happens
                     utils.writeBinaryData("reddit_comments_dbAggrData_fromQuery"+time.strftime('%Y%m%d_%H%M%S')+".dat", data)
@@ -78,7 +78,7 @@ def readFromRedditCommentDb(data, lastDate=0):
             except AssertionError:
                 flushStatusData(lastCommentDate, lastCommentId)
                 raise
-            except Exception, ex:
+            except Exception as ex:
                 print(f'error: {ex=}')
                 flushStatusData(lastCommentDate, lastCommentId)
                 continue
@@ -89,17 +89,18 @@ def readFromRedditCommentDb(data, lastDate=0):
         for line in dbLines:
             dbAggrData = dbAggrData + processing.preprocessShortText(line)
         dbLines = []
-        data = data + processing.aggregate(dbAggrData, printed=True)
+        data = data + processing.aggregate(dbAggrData, printed=True, limit=100000)
         dbAggrData=[]
 
-    print("Last comment ID parsed: ", lastCommentId)
+    print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"Last comment ID parsed: ", lastCommentId)
 
     #in case something funny happens
     with open("reddit_comments_dbAggrData"+time.strftime('%Y%m%d_%H%M%S')+".dat", mode="wb") as outf:
         pickle.dump(data, outf)
 
-    print("AGGREGATING EVERYTHING")
-    data = processing.aggregate(data, printed=True)
+    print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"AGGREGATING EVERYTHING")
+    data = processing.aggregate(data, printed=True, limit=10000)
 
+    print(time.strftime('%Y-%m-%d %H:%M:%S | ')+"Writing to file")
     with open("reddit_comments_data"+".dat", mode="wb") as outf:
         pickle.dump(data, outf)
