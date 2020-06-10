@@ -39,7 +39,7 @@ def optimize(df: pd.DataFrame, datetime_features: List[str] = []):
 
 data = []
 
-with open("reddit_comments_dbAggrData_fromQuery20200604_165429.dat", mode='rb') as f:
+with open("reddit_comments_dbAggrData20200605_000259.dat", mode='rb') as f:
   data = pickle.load(f)
 
 print(f'before filter: {len(data)=}')
