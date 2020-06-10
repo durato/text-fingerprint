@@ -1,3 +1,6 @@
+import os,io,pickle,time,sqlite3,string
+from . import processing, utils
+
 def flushStatusData(lastdate, lastcomment):
     print("Last comment ID parsed: ", lastcomment)
     print("Last date parsed: ", lastdate)
@@ -44,17 +47,17 @@ def readFromRedditCommentDb(data, lastDate=0):
                     print(time.strftime('%Y-%m-%d %H:%M:%S | ')+str(aggregate_at)+" comments processed.", "Total:",str(processCycles*aggregate_at))
 
                     dbAggrDataLength = len(dbAggrData)
-                    data = data + aggregate(dbAggrData, printed=True)
+                    data = data + processing.aggregate(dbAggrData, printed=True)
                     dbAggrData=[]
 
                     print(time.strftime('%Y-%m-%d %H:%M:%S | '),"Processing cycle #"+str(processCycles),"data length:",len(data))
 
                     if processCycles%5==0:
                         print("Aggregating entire data")
-                        data = aggregate(data, printed=True)
+                        data = processing.aggregate(data, printed=True)
 
                     #in case something funny happens
-                    writeBinaryData("reddit_comments_dbAggrData_fromQuery"+time.strftime('%Y%m%d_%H%M%S')+".dat", data)
+                    utils.writeBinaryData("reddit_comments_dbAggrData_fromQuery"+time.strftime('%Y%m%d_%H%M%S')+".dat", data)
 
                     flushStatusData(lastCommentDate, lastCommentId)
 
@@ -66,7 +69,7 @@ def readFromRedditCommentDb(data, lastDate=0):
                 elif processedCount%consume_at==0:
                     print(".", end="", flush=True)
                     for line in dbLines:
-                        dbAggrData = dbAggrData + consume(line)
+                        dbAggrData = dbAggrData + processing.consume(line)
                     dbLines = []
 
             except KeyboardInterrupt:
@@ -75,8 +78,8 @@ def readFromRedditCommentDb(data, lastDate=0):
             except AssertionError:
                 flushStatusData(lastCommentDate, lastCommentId)
                 raise
-            except:
-                print("error")
+            except Exception, ex:
+                print(f'error: {ex=}')
                 flushStatusData(lastCommentDate, lastCommentId)
                 continue
 
@@ -84,9 +87,9 @@ def readFromRedditCommentDb(data, lastDate=0):
     if len(dbLines)>0:
         print(time.strftime('%Y-%m-%d %H:%M:%S | '),len(dbLines),"lines remaining in dbLines, aggregating that")
         for line in dbLines:
-            dbAggrData = dbAggrData + preprocessShortText(line)
+            dbAggrData = dbAggrData + processing.preprocessShortText(line)
         dbLines = []
-        data = data + aggregate(dbAggrData, printed=True)
+        data = data + processing.aggregate(dbAggrData, printed=True)
         dbAggrData=[]
 
     print("Last comment ID parsed: ", lastCommentId)
@@ -96,7 +99,7 @@ def readFromRedditCommentDb(data, lastDate=0):
         pickle.dump(data, outf)
 
     print("AGGREGATING EVERYTHING")
-    data = aggregate(data, printed=True)
+    data = processing.aggregate(data, printed=True)
 
     with open("reddit_comments_data"+".dat", mode="wb") as outf:
         pickle.dump(data, outf)

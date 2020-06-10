@@ -1,3 +1,6 @@
+import collections, concurrent.futures, time, sys, pickle
+from . import utils
+
 ##############################
 #### PROCESS RAW TEXT ########
 ##############################
@@ -9,7 +12,7 @@ def consume(lines, printed=False):
         lastWords = collections.deque(5*[""], 5)
         #print(line)
         #print(punctualize(line))
-        line = punctualize(line)
+        line = utils.punctualize(line)
         #print(line)
         for word in line.split(" "):
             if word=="" or word==" " or (word in ignored):
@@ -50,7 +53,7 @@ def aggregate(d, existing = None, slot=0, percents=[float(0)], limit=0, printed=
     if limit>0 and len(consumed_data)>limit:
         if printed:
             print("Splitting.")
-        firstHalf, lastHalf = split_list(consumed_data)
+        firstHalf, lastHalf = utils.split_list(consumed_data)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             percents.append(float(0))
             percents.append(float(0))
@@ -74,7 +77,7 @@ def aggregate(d, existing = None, slot=0, percents=[float(0)], limit=0, printed=
             if printed:
                 print(percents, "slot = ",slot)
             raise
-        pctStrCur = formatPercents(percents)
+        pctStrCur = utils.formatPercents(percents)
 
         if pctStr != pctStrCur and printed:
             print(pctStrCur, originalCount-currentCount, "/", originalCount, end="\r", flush=True)
@@ -101,8 +104,8 @@ def aggregate(d, existing = None, slot=0, percents=[float(0)], limit=0, printed=
     return result
 
 def cleanseRawData(fileName):
-    rawData = dataSort(loadExistingBinaryData(fileName)[:10000])
-    cleansed = dataSort(aggregate(rawData, printed=True))
+    rawData = utils.dataSort(loadExistingBinaryData(fileName)[:10000])
+    cleansed = utils.dataSort(aggregate(rawData, printed=True))
     writeBinaryData(fileName+".cleansed.dat", cleansed)
 
 ##############################
@@ -144,12 +147,12 @@ def learn(fname, existingFname="", outfname="output_data.dat"):
         print("Error reading learning sample.")
         exit()
 
-    data = dataSort(data)
+    data = utils.dataSort(data)
 
     with open(outfname+".dat", mode="wb") as outf:
         pickle.dump(data, outf)
 
-    print(dataSort(data)[0:100])
+    print(utils.dataSort(data)[0:100])
     return data
 
 ##############################
@@ -159,5 +162,5 @@ def preprocessShortText(lines):
     assert (lines is not None and len(lines)>0)
 
     inputData = aggregate(consume(lines))
-    inputData = dataSort(inputData, col=2)
+    inputData = utils.dataSort(inputData, col=2)
     return inputData

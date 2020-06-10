@@ -76,3 +76,23 @@ def compare(first, second, standard=None, printed=False):
                 print("=======================================================")
 
     return result
+
+# textData1 = preprocessShortText(sampleInput1.split('\n'))
+# textData2 = preprocessShortText(sampleInput2.split('\n'))
+# textDatas = []
+#
+# texts = ["A Little Moody - JackPotr.txt", "The Lost Ones - little.acatalepsy.txt"]
+#
+# for text in texts:
+#     with open(text, "r") as f:
+#         if os.path.exists(text+".dat"):
+#             with open(text+".dat", mode="rb") as outf:
+#                 textDatas.append(pickle.load(outf))
+#         else:
+#             d = preprocessShortText(f.readlines())
+#             textDatas.append(d)
+#             with open(text+".dat", mode="wb") as outf:
+#                 pickle.dump(d, outf)
+#
+# compare(textDatas[0], textDatas[1], standard = data, printed=True)
+#compareWords(first, second, standard)
