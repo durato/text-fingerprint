@@ -6,3 +6,4 @@
 *.ipynb
 .ipynb_checkpoints/*
 !readme.txt
+*/__pycache__/*
